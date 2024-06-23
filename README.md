@@ -4,23 +4,29 @@ PokéRogue is a browser based Pokémon fangame heavily inspired by the roguelite
 
 # Contributing
 ## 🛠️ Development
-If you have the motivation and experience with Typescript/Javascript (or are willing to learn) please feel free to fork the repository and make pull requests with contributions. If you don't know what to work on but want to help, reference the below **To-Do** section or the **#vote** channel in the discord. 
+If you have the motivation and experience with Typescript/Javascript (or are willing to learn) please feel free to fork the repository and make pull requests with contributions. If you don't know what to work on but want to help, reference the below **To-Do** section or the **#feature-vote** channel in the discord. 
 
 ### 💻 Environment Setup
-node: 18.3.0
+#### Prerequisites
+- node: 20.13.1
+- npm: [how to install](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
+#### Running Locally
 1. Clone the repo and in the root directory run `npm install`
     - *if you run into any errors, reach out in the **#dev-corner** channel in discord*
 2. Run `npm run start:dev` to locally run the project in `localhost:8000`
 
+#### Linting
+We're using ESLint as our common linter and formatter. It will run automatically during the pre-commit hook but if you would like to manually run it, use the `npm run eslint` script. 
+
 ### ❔ FAQ 
 
 **How do I test a new _______?**
-- In the `battle-scene.ts` file there are overrides for most values you'll need to change for testing
+- In the `src/overrides.ts` file there are overrides for most values you'll need to change for testing
 
 
 ## 🪧 To Do
-Check out our [Trello Board](https://trello.com/b/z10B703R/pokerogue-board) to see what we're working on
+Check out [Github Issues](https://github.com/pagefaultgames/pokerogue/issues) to see how can you help us!
 
 # 📝 Credits
 > If this project contains assets you have produced and you do not see your name here, **please** reach out.
@@ -40,8 +46,16 @@ Check out our [Trello Board](https://trello.com/b/z10B703R/pokerogue-board) to s
     - Keisuke Ito
     - Arata Iiyoshi
     - Atsuhiro Ishizuna
+  - Pokémon HeartGold/SoulSilver
   - Pokémon Black/White 2
-  - edifette (Title screen music)
+  - Pokémon X/Y
+  - Pokémon Omega Ruby/Alpha Sapphire
+  - Pokémon Sun/Moon
+  - Pokémon Ultra Sun/Ultra Moon
+  - Pokémon Sword/Shield
+  - Pokémon Scarlet/Violet
+  - Firel (Custom Metropolis and Laboratory biome music)
+  - Lmz (Custom Jungle biome music)
 
 ### 🎵 Sound Effects
   - Pokémon Emerald
@@ -70,7 +84,7 @@ Check out our [Trello Board](https://trello.com/b/z10B703R/pokerogue-board) to s
 ### 🎨 Trainer Portraits
   - pkmn_realidea (Paid Commissions)
 
-### 🎨 Pokemon Sprites
+### 🎨 Pokemon Sprites and Animation
   - GAMEFREAK (Pokémon Black/White 2)
   - Smogon Sprite Project (Various Artists)
   - Skyflyer
@@ -96,6 +110,7 @@ Check out our [Trello Board](https://trello.com/b/z10B703R/pokerogue-board) to s
   - bizcoeindoloro
   - mangalos810
   - Involuntary-Twitch
+  - selstar
 
 ### 🎨 Move Animations
   - Pokémon Reborn

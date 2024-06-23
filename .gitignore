@@ -14,8 +14,6 @@ dist-ssr
 
 # Editor directories and files
 .vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -33,5 +31,12 @@ public/images/pokemon/icons/input/output/*
 public/images/character/*/
 src/data/battle-anim-raw-data*.ts
 src/data/battle-anim-data.ts
+src/overrides.ts
 
 coverage
+/.vs
+
+# Local Documentation
+/typedoc
+
+/dependency-graph.svg

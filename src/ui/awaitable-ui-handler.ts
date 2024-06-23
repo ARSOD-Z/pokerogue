@@ -1,6 +1,7 @@
-import BattleScene, { Button } from "../battle-scene";
+import BattleScene from "../battle-scene";
 import { Mode } from "./ui";
 import UiHandler from "./ui-handler";
+import {Button} from "#enums/buttons";
 
 export default abstract class AwaitableUiHandler extends UiHandler {
   protected awaitingActionInput: boolean;
@@ -20,7 +21,7 @@ export default abstract class AwaitableUiHandler extends UiHandler {
       this.awaitingActionInput = false;
       return true;
     }
-    
+
     return false;
   }
 }

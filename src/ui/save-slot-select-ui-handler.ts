@@ -1,16 +1,17 @@
-import BattleScene, { Button } from "../battle-scene";
-import { gameModes } from "../game-mode";
+import i18next from "i18next";
+import BattleScene from "../battle-scene";
+import { Button } from "#enums/buttons";
+import { GameMode } from "../game-mode";
+import { PokemonHeldItemModifier } from "../modifier/modifier";
 import { SessionSaveData } from "../system/game-data";
+import PokemonData from "../system/pokemon-data";
+import * as Utils from "../utils";
+import MessageUiHandler from "./message-ui-handler";
 import { TextStyle, addTextObject } from "./text";
 import { Mode } from "./ui";
 import { addWindow } from "./ui-theme";
-import * as Utils from "../utils";
-import PokemonData from "../system/pokemon-data";
-import { PokemonHeldItemModifier } from "../modifier/modifier";
-import { TitlePhase } from "../phases";
-import MessageUiHandler from "./message-ui-handler";
 
-const sessionSlotCount = 3;
+const sessionSlotCount = 5;
 
 export enum SaveSlotUiMode {
   LOAD,
@@ -30,7 +31,11 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
   private uiMode: SaveSlotUiMode;
   private saveSlotSelectCallback: SaveSlotSelectCallback;
 
+  private scrollCursor: integer = 0;
+
   private cursorObj: Phaser.GameObjects.NineSlice;
+
+  private sessionSlotsContainerInitialY: number;
 
   constructor(scene: BattleScene) {
     super(scene, Mode.SAVE_SLOT);
@@ -47,7 +52,9 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
     loadSessionBg.setOrigin(0, 0);
     this.saveSlotSelectContainer.add(loadSessionBg);
 
-    this.sessionSlotsContainer = this.scene.add.container(8, -this.scene.game.canvas.height / 6 + 8);
+    this.sessionSlotsContainerInitialY = -this.scene.game.canvas.height / 6 + 8;
+
+    this.sessionSlotsContainer = this.scene.add.container(8, this.sessionSlotsContainerInitialY);
     this.saveSlotSelectContainer.add(this.sessionSlotsContainer);
 
     this.saveSlotSelectMessageBoxContainer = this.scene.add.container(0, 0);
@@ -58,7 +65,7 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
     this.saveSlotSelectMessageBox.setOrigin(0, 1);
     this.saveSlotSelectMessageBoxContainer.add(this.saveSlotSelectMessageBox);
 
-    this.message = addTextObject(this.scene, 8, 8, '', TextStyle.WINDOW, { maxLines: 2 });
+    this.message = addTextObject(this.scene, 8, 8, "", TextStyle.WINDOW, { maxLines: 2 });
     this.message.setOrigin(0, 0);
     this.saveSlotSelectMessageBoxContainer.add(this.message);
 
@@ -66,16 +73,18 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
   }
 
   show(args: any[]): boolean {
-    if ((args.length < 2 || !(args[1] instanceof Function)))
+    if ((args.length < 2 || !(args[1] instanceof Function))) {
       return false;
+    }
 
     super.show(args);
 
-    this.uiMode = args[0] as SaveSlotUiMode;;
+    this.uiMode = args[0] as SaveSlotUiMode;
     this.saveSlotSelectCallback = args[1] as SaveSlotSelectCallback;
 
     this.saveSlotSelectContainer.setVisible(true);
     this.populateSessionSlots();
+    this.setScrollCursor(0);
     this.setCursor(0);
 
     return true;
@@ -90,35 +99,37 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
     if (button === Button.ACTION || button === Button.CANCEL) {
       const originalCallback = this.saveSlotSelectCallback;
       if (button === Button.ACTION) {
-        if (this.uiMode === SaveSlotUiMode.LOAD && !this.sessionSlots[this.cursor].hasData)
+        const cursor = this.cursor + this.scrollCursor;
+        if (this.uiMode === SaveSlotUiMode.LOAD && !this.sessionSlots[cursor].hasData) {
           error = true;
-        else {
+        } else {
           switch (this.uiMode) {
-            case SaveSlotUiMode.LOAD:
+          case SaveSlotUiMode.LOAD:
+            this.saveSlotSelectCallback = null;
+            originalCallback(cursor);
+            break;
+          case SaveSlotUiMode.SAVE:
+            const saveAndCallback = () => {
+              const originalCallback = this.saveSlotSelectCallback;
               this.saveSlotSelectCallback = null;
-              originalCallback(this.cursor);
-              break;
-            case SaveSlotUiMode.SAVE:
-              const saveAndCallback = () => {
-                const originalCallback = this.saveSlotSelectCallback;
-                this.saveSlotSelectCallback = null;
-                ui.revertMode();
-                ui.showText(null, 0);
-                ui.setMode(Mode.MESSAGE);
-                originalCallback(this.cursor);
-              };
-              if (this.sessionSlots[this.cursor].hasData) {
-                ui.showText('Overwrite the data in the selected slot?', null, () => {
-                  ui.setOverlayMode(Mode.CONFIRM, () => saveAndCallback(), () => {
-                    ui.revertMode();
-                    ui.showText(null, 0);
-                  }, false, 0, 19, 2000);
-                });
-              } else if (this.sessionSlots[this.cursor].hasData === false)
-                saveAndCallback();
-              else
-                return false;
-              break;
+              ui.revertMode();
+              ui.showText(null, 0);
+              ui.setMode(Mode.MESSAGE);
+              originalCallback(cursor);
+            };
+            if (this.sessionSlots[cursor].hasData) {
+              ui.showText(i18next.t("saveSlotSelectUiHandler:overwriteData"), null, () => {
+                ui.setOverlayMode(Mode.CONFIRM, () => saveAndCallback(), () => {
+                  ui.revertMode();
+                  ui.showText(null, 0);
+                }, false, 0, 19, 2000);
+              });
+            } else if (this.sessionSlots[cursor].hasData === false) {
+              saveAndCallback();
+            } else {
+              return false;
+            }
+            break;
           }
           success = true;
         }
@@ -129,19 +140,28 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
       }
     } else {
       switch (button) {
-        case Button.UP:
-          success = this.setCursor(this.cursor ? this.cursor - 1 : 0);
-          break;
-        case Button.DOWN:
-          success = this.setCursor(this.cursor < sessionSlotCount - 1 ? this.cursor + 1 : 2);
-          break;
+      case Button.UP:
+        if (this.cursor) {
+          success = this.setCursor(this.cursor - 1);
+        } else if (this.scrollCursor) {
+          success = this.setScrollCursor(this.scrollCursor - 1);
+        }
+        break;
+      case Button.DOWN:
+        if (this.cursor < 2) {
+          success = this.setCursor(this.cursor + 1);
+        } else if (this.scrollCursor < sessionSlotCount - 3) {
+          success = this.setScrollCursor(this.scrollCursor + 1);
+        }
+        break;
       }
     }
 
-    if (success)
+    if (success) {
       ui.playSelect();
-    else if (error)
+    } else if (error) {
       ui.playError();
+    }
 
     return success || error;
   }
@@ -159,7 +179,7 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
   showText(text: string, delay?: integer, callback?: Function, callbackDelay?: integer, prompt?: boolean, promptDelay?: integer) {
     super.showText(text, delay, callback, callbackDelay, prompt, promptDelay);
 
-    if (text?.indexOf('\n') === -1) {
+    if (text?.indexOf("\n") === -1) {
       this.saveSlotSelectMessageBox.setSize(318, 28);
       this.message.setY(-22);
     } else {
@@ -169,16 +189,33 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
 
     this.saveSlotSelectMessageBoxContainer.setVisible(!!text?.length);
   }
-  
+
   setCursor(cursor: integer): boolean {
-    let changed = super.setCursor(cursor);
-    
+    const changed = super.setCursor(cursor);
+
     if (!this.cursorObj) {
-      this.cursorObj = this.scene.add.nineslice(0, 0, 'select_cursor_highlight_thick', null, 296, 44, 6, 6, 6, 6);
+      this.cursorObj = this.scene.add.nineslice(0, 0, "select_cursor_highlight_thick", null, 296, 44, 6, 6, 6, 6);
       this.cursorObj.setOrigin(0, 0);
       this.sessionSlotsContainer.add(this.cursorObj);
     }
-    this.cursorObj.setPosition(4, 4 + cursor * 56);
+    this.cursorObj.setPosition(4, 4 + (cursor + this.scrollCursor) * 56);
+
+    return changed;
+  }
+
+  setScrollCursor(scrollCursor: integer): boolean {
+    const changed = scrollCursor !== this.scrollCursor;
+
+    if (changed) {
+      this.scrollCursor = scrollCursor;
+      this.setCursor(this.cursor);
+      this.scene.tweens.add({
+        targets: this.sessionSlotsContainer,
+        y: this.sessionSlotsContainerInitialY - 56 * scrollCursor,
+        duration: Utils.fixedInt(325),
+        ease: "Sine.easeInOut"
+      });
+    }
 
     return changed;
   }
@@ -192,8 +229,9 @@ export default class SaveSlotSelectUiHandler extends MessageUiHandler {
   }
 
   eraseCursor() {
-    if (this.cursorObj)
+    if (this.cursorObj) {
       this.cursorObj.destroy();
+    }
     this.cursorObj = null;
   }
 
@@ -212,7 +250,7 @@ class SessionSlot extends Phaser.GameObjects.Container {
     super(scene, 0, slotId * 56);
 
     this.slotId = slotId;
-    
+
     this.setup();
   }
 
@@ -220,7 +258,7 @@ class SessionSlot extends Phaser.GameObjects.Container {
     const slotWindow = addWindow(this.scene, 0, 0, 304, 52);
     this.add(slotWindow);
 
-    this.loadingLabel = addTextObject(this.scene, 152, 26, 'Loading…', TextStyle.WINDOW);
+    this.loadingLabel = addTextObject(this.scene, 152, 26, i18next.t("saveSlotSelectUiHandler:loading"), TextStyle.WINDOW);
     this.loadingLabel.setOrigin(0.5, 0.5);
     this.add(this.loadingLabel);
   }
@@ -228,7 +266,7 @@ class SessionSlot extends Phaser.GameObjects.Container {
   async setupWithData(data: SessionSaveData) {
     this.remove(this.loadingLabel, true);
 
-    const gameModeLabel = addTextObject(this.scene, 8, 5, `${gameModes[data.gameMode].getName()} - Wave ${data.waveIndex}`, TextStyle.WINDOW);
+    const gameModeLabel = addTextObject(this.scene, 8, 5, `${GameMode.getModeName(data.gameMode) || i18next.t("gameMode:unkown")} - ${i18next.t("saveSlotSelectUiHandler:wave")} ${data.waveIndex}`, TextStyle.WINDOW);
     this.add(gameModeLabel);
 
     const timestampLabel = addTextObject(this.scene, 8, 19, new Date(data.timestamp).toLocaleString(), TextStyle.WINDOW);
@@ -245,9 +283,9 @@ class SessionSlot extends Phaser.GameObjects.Container {
       const pokemon = p.toPokemon(this.scene);
       const icon = this.scene.addPokemonIcon(pokemon, 0, 0, 0, 0);
 
-      const text = addTextObject(this.scene, 32, 20, `Lv${Utils.formatLargeNumber(pokemon.level, 1000)}`, TextStyle.PARTY, { fontSize: '54px', color: '#f8f8f8' });
+      const text = addTextObject(this.scene, 32, 20, `${i18next.t("saveSlotSelectUiHandler:lv")}${Utils.formatLargeNumber(pokemon.level, 1000)}`, TextStyle.PARTY, { fontSize: "54px", color: "#f8f8f8" });
       text.setShadow(0, 0, null);
-      text.setStroke('#424242', 14);
+      text.setStroke("#424242", 14);
       text.setOrigin(1, 0);
 
       iconContainer.add(icon);
@@ -260,20 +298,22 @@ class SessionSlot extends Phaser.GameObjects.Container {
 
     this.add(pokemonIconsContainer);
 
-    const modifiersModule = await import('../modifier/modifier');
+    const modifiersModule = await import("../modifier/modifier");
 
     const modifierIconsContainer = this.scene.add.container(148, 30);
     modifierIconsContainer.setScale(0.5);
     let visibleModifierIndex = 0;
-    for (let m of data.modifiers) {
+    for (const m of data.modifiers) {
       const modifier = m.toModifier(this.scene, modifiersModule[m.className]);
-      if (modifier instanceof PokemonHeldItemModifier)
+      if (modifier instanceof PokemonHeldItemModifier) {
         continue;
+      }
       const icon = modifier.getIcon(this.scene, false);
       icon.setPosition(24 * visibleModifierIndex, 0);
       modifierIconsContainer.add(icon);
-      if (++visibleModifierIndex === 12)
+      if (++visibleModifierIndex === 12) {
         break;
+      }
     }
 
     this.add(modifierIconsContainer);
@@ -284,7 +324,7 @@ class SessionSlot extends Phaser.GameObjects.Container {
       this.scene.gameData.getSession(this.slotId).then(async sessionData => {
         if (!sessionData) {
           this.hasData = false;
-          this.loadingLabel.setText('Empty');
+          this.loadingLabel.setText(i18next.t("saveSlotSelectUiHandler:empty"));
           resolve(false);
           return;
         }
